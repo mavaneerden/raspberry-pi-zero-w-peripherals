@@ -12,8 +12,8 @@
 
 #include "include/gpio_pin.hpp"
 
-namespace pi_zero_peripherals
-{
+using namespace pi_zero_peripherals;
+
 /* Number of GPIO pins supported. */
 static constexpr uint8_t NUM_GPIO_PINS = 54u;
 /* Define default config. */
@@ -229,5 +229,3 @@ uint8_t gpio_pin_t::get_value()
     /* Return value. */
     return this->gpio_line.get_value();
 }
-
-} /* pi_zero_peripherals */

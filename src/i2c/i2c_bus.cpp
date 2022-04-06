@@ -1,3 +1,11 @@
+/**
+ * @file i2c_bus.cpp
+ * @author Marco van Eerden (mavaneerden@gmail.com)
+ * @brief Contains the i2c_bus_t class that represents an I2C bus in user space.
+ *        The bus number is used to open the correct character device file.
+ * @date 06-04-2022
+ */
+
 #include <assert.h>
 #include <iostream>
 #include <string>
@@ -8,12 +16,21 @@
 
 using namespace pi_zero_peripherals;
 
+/**
+ * @brief Construct a new i2c_bus_t object.
+ *
+ * @param bus_number Number that uniquely identifies the I2C bus.
+ */
 i2c_bus_t::i2c_bus_t(uint8_t bus_number) :
     initialised(0u),
     bus_number(bus_number),
     bus_fd(-1)
 {}
 
+/**
+ * @brief Destroy the i2c_bus_t object.
+ * Closes the I2C character device file.
+ */
 i2c_bus_t::~i2c_bus_t()
 {
     if (initialised == 1u)
@@ -22,16 +39,16 @@ i2c_bus_t::~i2c_bus_t()
     }
 }
 
+/**
+ * @brief Initialises the I2C bus by opening the file and storing the file descriptor.
+ */
 void i2c_bus_t::initialise()
 {
     assert(initialised == 0u);
-    assert(bus_number == 1u || bus_number == 2u);
 
     std::string file_name = "/dev/i2c-" + std::to_string(bus_number);
 
     this->bus_fd = i2c_open(file_name.data());
-
-    printf("%d", this->bus_fd);
 
     if(this->bus_fd == -1)
     {

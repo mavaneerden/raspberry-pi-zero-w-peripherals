@@ -17,6 +17,7 @@ public:
     void initialise();
     void display(uint8_t display_data[SCREEN_HEIGHT][SCREEN_WIDTH]);
     void clear_screen();
+    uint8_t get_display_status();
 
     enum continuous_horizontal_scroll_mode : uint8_t {
         HORIZONTAL_SCROLL_RIGHT = 0u,
@@ -132,6 +133,7 @@ private:
 
     void write_command(uint8_t command);
     void write_data(uint8_t data);
+    uint8_t read_data();
 };
 
 } /* pi_zero_peripherals */

@@ -16,7 +16,7 @@ public:
     uint8_t initialised;
     int bus_fd;
 private:
-    uint8_t bus_number;
+    const uint8_t bus_number;
 };
 
 } /* pi_zero_peripherals */

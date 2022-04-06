@@ -52,7 +52,8 @@ TEST_CASE("Test i2c_bus_t")
  */
 TEST_CASE("Test ssd1306_t")
 {
-    ssd1306_t ssd1306(i2c);
+    i2c_bus_t i2c_bus(1u);
+    ssd1306_t ssd1306(i2c_bus);
 
     /* Test initialisation. */
     SUBCASE("Initialisation")

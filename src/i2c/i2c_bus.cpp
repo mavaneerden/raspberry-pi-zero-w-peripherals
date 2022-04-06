@@ -16,10 +16,6 @@
 
 using namespace pi_zero_peripherals;
 
-/* Instantiate I2C buses. */
-i2c_bus_t i2c(1u);
-i2c_bus_t i2c_eeprom(2u);
-
 /**
  * @brief Construct a new i2c_bus_t object.
  *

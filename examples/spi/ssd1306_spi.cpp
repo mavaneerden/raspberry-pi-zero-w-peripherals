@@ -1,5 +1,5 @@
 /**
- * @file ssd1306.cpp
+ * @file ssd1306f_spi.cpp
  * @author Marco van Eerden (mavaneerden@gmail.com)
  * @brief Driver for the SSD1306 128x64 monochrome OLED display
  * @date 06-04-2022
@@ -34,18 +34,28 @@
 
 #include <assert.h>
 
-#include "include/ssd1306.hpp"
+#include "include/ssd1306_spi.hpp"
 
 using namespace pi_zero_peripherals;
 
 /**
- * @brief Construct a new ssd1306_t object.
+ * @brief Construct a new ssd1306_spi_t object.
  *
  * @param bus I2C bus that the device is on.
  * @param address_lsb LSB of the slave address. Can be 0 or 1 depending on the SA0 pin.
  */
-ssd1306_t::ssd1306_t(i2c_bus_t& bus, uint8_t address_lsb) :
-    i2c_device_t(bus, ADDRESS_BASE | address_lsb)
+ssd1306_spi_t::ssd1306_spi_t(uint8_t spi_bus, uint8_t spi_cs, bool use_3_wire_spi) :
+    spi_driver(spi_bus, spi_cs, 16u, true, false, false, use_3_wire_spi, false, true, false)
+{}
+
+/**
+ * @brief Construct a new ssd1306_spi_t object.
+ *
+ * @param bus I2C bus that the device is on.
+ * @param address_lsb LSB of the slave address. Can be 0 or 1 depending on the SA0 pin.
+ */
+ssd1306_spi_t::ssd1306_spi_t(uint8_t spi_bus, bool use_3_wire_spi) :
+    spi_driver(spi_bus, 0u, 16u, true, false, false, use_3_wire_spi, false, false, false)
 {}
 
 /**
@@ -63,12 +73,12 @@ ssd1306_t::ssd1306_t(i2c_bus_t& bus, uint8_t address_lsb) :
  * 10. Enable charge pump regulator.
  * 11. Enable display.
  */
-void ssd1306_t::initialise()
+void ssd1306_spi_t::initialise()
 {
     assert(!this->initialised);
 
     /* Initialise the I2C bus. */
-    this->bus.initialise();
+    this->spi_driver.initialise(400000u);
 
     /* Disable display for initialisation. */
     this->enable_display(false);
@@ -102,7 +112,7 @@ void ssd1306_t::initialise()
  *
  * TODO: allow writing of variable sized data at dynamic screen position.
  */
-void ssd1306_t::display(uint8_t display_data[SCREEN_HEIGHT][SCREEN_WIDTH])
+void ssd1306_spi_t::display(uint8_t display_data[SCREEN_HEIGHT][SCREEN_WIDTH])
 {
     /* Set addressing mode to horizontal: auto-wrap of page and column addresses. */
     this->set_memory_addressing_mode(HORIZONTAL_ADDRESSING_MODE);
@@ -112,15 +122,15 @@ void ssd1306_t::display(uint8_t display_data[SCREEN_HEIGHT][SCREEN_WIDTH])
     this->set_column_addresses();
 
     /* Loop over pages. */
-    for (size_t page = 0; page < NUMBER_OF_PAGES; page++)
+    for (uint8_t page = 0; page < NUMBER_OF_PAGES; page++)
     {
         /* Loop over columns. */
-        for (size_t column = 0; column < SCREEN_WIDTH; column++)
+        for (uint8_t column = 0; column < SCREEN_WIDTH; column++)
         {
             uint8_t data = 0u;
 
             /* Extract column data from display data. */
-            for (size_t pixel = 0; pixel < 8u; pixel++)
+            for (uint8_t pixel = 0; pixel < 8u; pixel++)
             {
                 data |= display_data[page * 8 + pixel][column] << pixel;
             }
@@ -134,7 +144,7 @@ void ssd1306_t::display(uint8_t display_data[SCREEN_HEIGHT][SCREEN_WIDTH])
 /**
  * @brief Clear the OLED screen by setting all data to 0.
  */
-void ssd1306_t::clear_screen()
+void ssd1306_spi_t::clear_screen()
 {
     uint8_t data[SCREEN_HEIGHT][SCREEN_WIDTH] = { 0u };
 
@@ -146,7 +156,7 @@ void ssd1306_t::clear_screen()
  *
  * @param contrast A value between 0-255 that indicates the screen contrast.
  */
-void ssd1306_t::set_contrast(uint8_t contrast)
+void ssd1306_spi_t::set_contrast(uint8_t contrast)
 {
     this->write_command(COMMAND_SET_CONTRAST_CONTROL);
     this->write_command(contrast);
@@ -157,7 +167,7 @@ void ssd1306_t::set_contrast(uint8_t contrast)
  *
  * @param state If true, uses GDDRAM contents. If false, doesn't use the GDDRAM contents.
  */
-void ssd1306_t::use_ram_contents(bool state)
+void ssd1306_spi_t::use_ram_contents(bool state)
 {
     this->write_command(COMMAND_ENTIRE_DISPLAY | !state);
 }
@@ -167,7 +177,7 @@ void ssd1306_t::use_ram_contents(bool state)
  *
  * @param state If true, inverts the GDDRAM contents before displaying. If false, uses normal display mode.
  */
-void ssd1306_t::set_inverse_display(bool state)
+void ssd1306_spi_t::set_inverse_display(bool state)
 {
     this->write_command(COMMAND_SET_NORMAL_INVERTED_DISPLAY | state);
 }
@@ -177,7 +187,7 @@ void ssd1306_t::set_inverse_display(bool state)
  *
  * @param state If true, enables the display. If false, disables the display.
  */
-void ssd1306_t::enable_display(bool state)
+void ssd1306_spi_t::enable_display(bool state)
 {
     this->write_command(COMMAND_SET_DISPLAY | state);
 }
@@ -187,7 +197,7 @@ void ssd1306_t::enable_display(bool state)
  *
  * @param state If true, activates scrolling. If false, deactivates scrolling.
  */
-void ssd1306_t::activate_scroll(bool state)
+void ssd1306_spi_t::activate_scroll(bool state)
 {
     this->write_command(state ? COMMAND_ACTIVATE_SCROLL : COMMAND_DEACTIVATE_SCROLL);
 }
@@ -200,7 +210,7 @@ void ssd1306_t::activate_scroll(bool state)
  * @param interval Scrolling interval.
  * @param end_page Last page that is part of the scrolling.
  */
-void ssd1306_t::set_continuous_horizontal_scroll(continuous_horizontal_scroll_mode mode, uint8_t start_page, continuous_horizontal_scroll_interval interval, uint8_t end_page)
+void ssd1306_spi_t::set_continuous_horizontal_scroll(continuous_horizontal_scroll_mode mode, uint8_t start_page, continuous_horizontal_scroll_interval interval, uint8_t end_page)
 {
     assert(start_page < NUMBER_OF_PAGES);
     assert(end_page < NUMBER_OF_PAGES);
@@ -224,7 +234,7 @@ void ssd1306_t::set_continuous_horizontal_scroll(continuous_horizontal_scroll_mo
  * @param end_page Last page that is part of the scrolling.
  * @param offset Scrolling offset.
  */
-void ssd1306_t::set_continuous_vertical_horizontal_scroll(continuous_vertical_horizontal_scroll_mode mode, uint8_t start_page, continuous_horizontal_scroll_interval interval, uint8_t end_page, uint8_t offset)
+void ssd1306_spi_t::set_continuous_vertical_horizontal_scroll(continuous_vertical_horizontal_scroll_mode mode, uint8_t start_page, continuous_horizontal_scroll_interval interval, uint8_t end_page, uint8_t offset)
 {
     assert(start_page < NUMBER_OF_PAGES);
     assert(end_page < NUMBER_OF_PAGES);
@@ -244,7 +254,7 @@ void ssd1306_t::set_continuous_vertical_horizontal_scroll(continuous_vertical_ho
  * @param fixed_rows Amount of fixed rows.
  * @param scroll_rows Amound of scrolling rows.
  */
-void ssd1306_t::set_vertical_scroll_area(uint8_t fixed_rows, uint8_t scroll_rows)
+void ssd1306_spi_t::set_vertical_scroll_area(uint8_t fixed_rows, uint8_t scroll_rows)
 {
     // TODO: assert MUX ratio, Display Start Line
     this->write_command(COMMAND_SET_VERTICAL_SCROLL_AREA);
@@ -257,7 +267,7 @@ void ssd1306_t::set_vertical_scroll_area(uint8_t fixed_rows, uint8_t scroll_rows
  *
  * @param address Starting address.
  */
-void ssd1306_t::set_column_start_address(uint8_t address)
+void ssd1306_spi_t::set_column_start_address(uint8_t address)
 {
     assert(address < SCREEN_WIDTH);
 
@@ -270,7 +280,7 @@ void ssd1306_t::set_column_start_address(uint8_t address)
  *
  * @param mode
  */
-void ssd1306_t::set_memory_addressing_mode(addressing_mode mode)
+void ssd1306_spi_t::set_memory_addressing_mode(addressing_mode mode)
 {
     this->write_command(COMMAND_SET_MEMORY_ADDRESSING_MODE);
     this->write_command(mode);
@@ -282,7 +292,7 @@ void ssd1306_t::set_memory_addressing_mode(addressing_mode mode)
  * @param start_address Column start address.
  * @param end_address Column end address.
  */
-void ssd1306_t::set_column_addresses(uint8_t start_address, uint8_t end_address)
+void ssd1306_spi_t::set_column_addresses(uint8_t start_address, uint8_t end_address)
 {
     assert(start_address < SCREEN_WIDTH);
     assert(end_address < SCREEN_WIDTH);
@@ -299,7 +309,7 @@ void ssd1306_t::set_column_addresses(uint8_t start_address, uint8_t end_address)
  * @param start_address Page start address.
  * @param end_address Page end address.
  */
-void ssd1306_t::set_page_addresses(uint8_t start_address, uint8_t end_address)
+void ssd1306_spi_t::set_page_addresses(uint8_t start_address, uint8_t end_address)
 {
     assert(start_address < NUMBER_OF_PAGES);
     assert(end_address < NUMBER_OF_PAGES);
@@ -315,7 +325,7 @@ void ssd1306_t::set_page_addresses(uint8_t start_address, uint8_t end_address)
  *
  * @param address Page start address.
  */
-void ssd1306_t::set_page_start_address(uint8_t address)
+void ssd1306_spi_t::set_page_start_address(uint8_t address)
 {
     assert(address < NUMBER_OF_PAGES);
 
@@ -327,7 +337,7 @@ void ssd1306_t::set_page_start_address(uint8_t address)
  *
  * @param line Line to start displaying at.
  */
-void ssd1306_t::set_display_start_line(uint8_t line)
+void ssd1306_spi_t::set_display_start_line(uint8_t line)
 {
     assert(line < SCREEN_HEIGHT);
 
@@ -339,7 +349,7 @@ void ssd1306_t::set_display_start_line(uint8_t line)
  *
  * @param mode When true, the segments are reversed. When false, the segments use their normal mapping.
  */
-void ssd1306_t::set_segmet_re_map(re_map_mode mode)
+void ssd1306_spi_t::set_segmet_re_map(re_map_mode mode)
 {
     this->write_command(COMMAND_SET_SEGMENT_RE_MAP | mode);
 }
@@ -349,7 +359,7 @@ void ssd1306_t::set_segmet_re_map(re_map_mode mode)
  *
  * @param ratio Multiplex ratio to set. Must be between 16-64
  */
-void ssd1306_t::set_multiplex_ratio(uint8_t ratio)
+void ssd1306_spi_t::set_multiplex_ratio(uint8_t ratio)
 {
     assert(16u <= ratio && ratio <= 64u);
 
@@ -362,7 +372,7 @@ void ssd1306_t::set_multiplex_ratio(uint8_t ratio)
  *
  * @param mode Mode to use. Can be normal (from top to bottom) or re-mapped (from bottom to top).
  */
-void ssd1306_t::set_com_output_scan_direction(com_output_scan_direction mode)
+void ssd1306_spi_t::set_com_output_scan_direction(com_output_scan_direction mode)
 {
     this->write_command(COMMAND_SET_COM_OUTPUT_SCAN_DIRECTION | mode);
 }
@@ -372,7 +382,7 @@ void ssd1306_t::set_com_output_scan_direction(com_output_scan_direction mode)
  *
  * @param offset Offset to set.
  */
-void ssd1306_t::set_display_offset(uint8_t offset)
+void ssd1306_spi_t::set_display_offset(uint8_t offset)
 {
     assert(offset < SCREEN_HEIGHT);
 
@@ -386,7 +396,7 @@ void ssd1306_t::set_display_offset(uint8_t offset)
  * @param configuration Sequential or alternative configuration.
  * @param enable_remap When true, re-mapping of rows is enabled. When false, rows are not re-mapped.
  */
-void ssd1306_t::set_com_pins_hardware_configuration(com_pins_hardware_configuration configuration, bool enable_remap)
+void ssd1306_spi_t::set_com_pins_hardware_configuration(com_pins_hardware_configuration configuration, bool enable_remap)
 {
     this->write_command(COMMAND_SET_COM_PINS_HARDWARE_CONFIGURATION);
     this->write_command(0x02u | (configuration << 5u) | (enable_remap << 4u));
@@ -398,7 +408,7 @@ void ssd1306_t::set_com_pins_hardware_configuration(com_pins_hardware_configurat
  * @param clock_divider Clock divider for the oscillator clock. Must be between 1 and 16.
  * @param oscillator_frequency Frequency used for the oscillator between 333 and 407 kHz.
  */
-void ssd1306_t::set_display_clock(uint8_t clock_divider, uint8_t oscillator_frequency)
+void ssd1306_spi_t::set_display_clock(uint8_t clock_divider, uint8_t oscillator_frequency)
 {
     assert(1u <= clock_divider && clock_divider <= 0b1111u + 1u);
     assert(oscillator_frequency <= 0b1111u);
@@ -413,7 +423,7 @@ void ssd1306_t::set_display_clock(uint8_t clock_divider, uint8_t oscillator_freq
  * @param phase_1_period Phase 1 discharging period.
  * @param phase_2_period Phase 2 charging period.
  */
-void ssd1306_t::set_pre_charge_period(uint8_t phase_1_period, uint8_t phase_2_period)
+void ssd1306_spi_t::set_pre_charge_period(uint8_t phase_1_period, uint8_t phase_2_period)
 {
     assert(1u <= phase_1_period && phase_1_period <= 0b1111u);
     assert(1u <= phase_2_period && phase_2_period <= 0b1111u);
@@ -427,7 +437,7 @@ void ssd1306_t::set_pre_charge_period(uint8_t phase_1_period, uint8_t phase_2_pe
  *
  * @param level Voltage level.
  */
-void ssd1306_t::set_v_comh_deselect_level(v_comh_deselect_level level)
+void ssd1306_spi_t::set_v_comh_deselect_level(v_comh_deselect_level level)
 {
     this->write_command(COMMAND_SET_V_COMH_DESELECT_LEVEL);
     this->write_command(level << 4u);
@@ -436,7 +446,7 @@ void ssd1306_t::set_v_comh_deselect_level(v_comh_deselect_level level)
 /**
  * @brief No Operation command.
  */
-void ssd1306_t::nop()
+void ssd1306_spi_t::nop()
 {
     this->write_command(COMMAND_NOP);
 }
@@ -446,7 +456,7 @@ void ssd1306_t::nop()
  *
  * @param state If true, charge pump regulator is enabled. If false, it is disabled.
  */
-void ssd1306_t::enable_charge_pump(bool state)
+void ssd1306_spi_t::enable_charge_pump(bool state)
 {
     this->write_command(COMMAND_CHARGE_PUMP_SETTING);
     this->write_command(0b010000 | (state << 2u));
@@ -457,11 +467,11 @@ void ssd1306_t::enable_charge_pump(bool state)
  *
  * @param command Command to write.
  */
-void ssd1306_t::write_command(uint8_t command)
+void ssd1306_spi_t::write_command(uint8_t command)
 {
-    uint8_t buffer[2] = { COMMAND_BYTE, command };
+    uint8_t buffer[2] = { COMMAND_BIT, command };
 
-    this->i2c_write(buffer, 2);
+    spi_driver.write(buffer, 2u);
 }
 
 /**
@@ -469,13 +479,13 @@ void ssd1306_t::write_command(uint8_t command)
  *
  * @return uint8_t Display status. 1u is on, 0u is off.
  */
-uint8_t ssd1306_t::get_display_status()
+uint8_t ssd1306_spi_t::get_display_status()
 {
     uint8_t result;
-    uint8_t command[1] = { COMMAND_BYTE };
+    uint8_t command[1] = { COMMAND_BIT };
 
-    this->i2c_write(command, 1u);
-    this->i2c_read(&result, 1u);
+    spi_driver.write(command, 1u);
+    spi_driver.read(&result, 1u);
 
     return result >> 6u;
 }
@@ -485,11 +495,11 @@ uint8_t ssd1306_t::get_display_status()
  *
  * @param data Data byte to write.
  */
-void ssd1306_t::write_data(uint8_t data)
+void ssd1306_spi_t::write_data(uint8_t data)
 {
-    uint8_t buffer[2] = { DATA_BYTE, data };
+    uint8_t buffer[2] = { DATA_BIT, data };
 
-    this->i2c_write(buffer, 2u);
+    spi_driver.write(buffer, 2u);
 }
 
 /**
@@ -497,14 +507,12 @@ void ssd1306_t::write_data(uint8_t data)
  *
  * @return uint8_t Data that was read.
  */
-uint8_t ssd1306_t::read_data()
+uint8_t ssd1306_spi_t::read_data()
 {
-    uint8_t data[1] = { DATA_BYTE };
+    uint8_t data[1] = { DATA_BIT };
 
-    this->i2c_write(data, 1u);
-    /* Dummy read. */
-    this->i2c_read(data, 1u);
-    this->i2c_read(data, 1u);
+    spi_driver.write(data, 1u);
+    spi_driver.read(data, 1u);
 
     return *data;
 }

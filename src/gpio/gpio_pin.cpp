@@ -2,10 +2,8 @@
  * @file gpio_pin.cpp
  * @author Marco van Eerden (mavaneerden@gmail.com)
  * @brief Contains the implementation for the gpio_pin class.
- * Also defines all 54 GPIO pins.
- * @date 2021-12-31
- *
- * @copyright Copyright (c) 2021 Marco van Eerden
+ *        Also defines all 54 GPIO pins.
+ * @date 31-12-2021
  */
 
 #include <assert.h>

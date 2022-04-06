@@ -16,7 +16,10 @@ public:
     uint8_t initialised;
     int bus_fd;
 private:
-    uint8_t bus_number;
+    const uint8_t bus_number;
 };
+
+extern i2c_bus_t i2c;
+extern i2c_bus_t i2c_eeprom;
 
 } /* pi_zero_peripherals */

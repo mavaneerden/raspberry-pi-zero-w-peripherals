@@ -2,18 +2,16 @@
  * @file gpio_pin.cpp
  * @author Marco van Eerden (mavaneerden@gmail.com)
  * @brief Contains the implementation for the gpio_pin class.
- * Also defines all 54 GPIO pins.
- * @date 2021-12-31
- *
- * @copyright Copyright (c) 2021 Marco van Eerden
+ *        Also defines all 54 GPIO pins.
+ * @date 31-12-2021
  */
 
 #include <assert.h>
 
 #include "include/gpio_pin.hpp"
 
-namespace pi_zero_peripherals
-{
+using namespace pi_zero_peripherals;
+
 /* Number of GPIO pins supported. */
 static constexpr uint8_t NUM_GPIO_PINS = 54u;
 /* Define default config. */
@@ -229,5 +227,3 @@ uint8_t gpio_pin_t::get_value()
     /* Return value. */
     return this->gpio_line.get_value();
 }
-
-} /* pi_zero_peripherals */
